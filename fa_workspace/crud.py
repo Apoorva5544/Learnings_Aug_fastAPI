@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends , status, Response , HTTPException
 from pydantic import BaseModel
 import models
+from typing import List
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 app = FastAPI()
@@ -10,6 +11,12 @@ models.Base.metadata.create_all(engine)
 class blog(BaseModel):
     title: str
     body: str
+
+class ShowBlog(BaseModel):
+    title: str
+    body: str
+    class Config():
+        orm_mode = True
 
 def get_db():
     db = SessionLocal()
@@ -45,13 +52,13 @@ def update(id,request: blog,db:Session = Depends(get_db)):
     return 'updated'
 
 
-@app.get('/blog')
+@app.get('/blog',response_model=List[ShowBlog])
 def all_blog(db:Session = Depends(get_db)):
     blogs = db.query(models.Blog).all()
     return blogs
 
-@app.get('/blog/{id}',status_code = 200)
-def show(id,response: Response,db:Session = Depends(get_db)):
+@app.get('/blog/{id}',status_code = 200,response_model=ShowBlog)
+def show(id,response: Response,db:Session = Depends(get_db)): 
     blog = db.query(models.Blog).filter(models.Blog.id == id).first()
     if not blog:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail = f"Blog with {id} is not available")
