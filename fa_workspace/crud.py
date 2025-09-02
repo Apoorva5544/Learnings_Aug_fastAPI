@@ -2,10 +2,12 @@ from fastapi import FastAPI, Depends , status, Response , HTTPException
 from pydantic import BaseModel
 import models
 from typing import List
+from . import hashing
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 app = FastAPI()
 
+#models.Base.metadata.drop_all(bind=engine) 
 models.Base.metadata.create_all(engine)
 
 class blog(BaseModel):
@@ -15,8 +17,22 @@ class blog(BaseModel):
 class ShowBlog(BaseModel):
     title: str
     body: str
-    class Config():
-        orm_mode = True
+
+    class Config:
+        from_attributes = True
+
+
+class user(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class ShowUser(BaseModel):
+    name: str
+    email: str
+
+    class Config:
+        from_attributes = True
 
 def get_db():
     db = SessionLocal()
@@ -66,3 +82,12 @@ def show(id,response: Response,db:Session = Depends(get_db)):
         #return {'detail': f'Blog with {id} is not available'}
     return blog 
    
+
+@app.post('/user',response_model=ShowUser)
+def create_user(request: user,db: Session = Depends(get_db)):
+   
+    new_user = models.User(name = request.name, email = request.email, password = hashing.Hash.bcrypt(request.password))
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
